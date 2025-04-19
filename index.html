@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Life System V7 - Stat Quests</title>
+    <!-- Fonts/CSS same as V6 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        /* --- Styles are identical to v6 --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0f1f; color: #e0f0ff; font-family: 'Roboto', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 30px 15px; }
+        .status-window { width: 95%; max-width: 800px; background-color: rgba(15, 25, 45, 0.9); border: 2px solid #0088cc; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 136, 204, 0.5), inset 0 0 10px rgba(0, 136, 204, 0.2); padding: 25px; position: relative; overflow: hidden; font-family: 'Orbitron', sans-serif; margin-bottom: 30px; }
+        .status-window::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(0, 136, 204, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 136, 204, 0.05) 1px, transparent 1px); background-size: 30px 30px; opacity: 0.4; pointer-events: none; z-index: 1; }
+        .content { position: relative; z-index: 2; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 136, 204, 0.3); padding-bottom: 15px; }
+        .header h1 { font-size: 2.5em; color: #40c4ff; text-shadow: 0 0 8px rgba(64, 196, 255, 0.6); letter-spacing: 3px; }
+        .level-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 10px; background: rgba(0, 40, 70, 0.4); border-radius: 5px; }
+        .level-display { display: flex; align-items: baseline; }
+        .level-number { font-size: 3em; color: #ffffff; margin-right: 10px; font-weight: 700; text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); transition: transform 0.3s ease-out, color 0.3s ease; }
+        .level-number.pulse { transform: scale(1.1); color: #90ffff; }
+        .level-display .level-label { font-size: 1em; color: #80dfff; align-self: flex-end; margin-bottom: 5px; }
+        .job-title span { display: block; font-size: 0.9em; color: #a0eaff; margin-bottom: 3px; }
+        .job-title .title-value { font-weight: bold; color: #ffffff; }
+        .resources { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; margin-bottom: 25px; gap: 15px; padding: 5px 0; }
+        .resource-bar label { font-size: 0.8em; margin-bottom: 4px; display: block; text-align: center; color: #80dfff;}
+        .resource-bar label i { margin-right: 5px; }
+        .bar-container { height: 15px; border-radius: 15px; background-color: rgba(0, 0, 0, 0.6); border: 1px solid #005077; overflow: hidden; position: relative;}
+        .bar-fill { height: 100%; background: linear-gradient(90deg, #0066aa, #00aaff); border-radius: 15px 0 0 15px; transition: width 0.5s ease-out; box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.2); }
+        .bar-fill.mp { background: linear-gradient(90deg, #4400bb, #8800ff); }
+        .bar-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.75em; color: #ffffff; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8); font-weight: bold; white-space: nowrap;}
+        .fatigue-display label { font-size: 0.8em; margin-bottom: 4px; display: block; text-align: center; color: #80dfff;}
+        .fatigue-value { font-size: 1.6em; color: #ffd080; font-weight: 700; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; padding: 15px; background: rgba(0, 40, 70, 0.4); border-radius: 5px; }
+        .stat-item { display: flex; align-items: center; padding: 4px; border-radius: 4px; transition: background-color 0.2s ease;}
+        .stat-item:hover { background-color: rgba(0, 60, 100, 0.5); }
+        .stat-item i { font-size: 1.6em; color: #00aaff; margin-right: 12px; width: 30px; text-align: center; text-shadow: 0 0 6px rgba(0, 170, 255, 0.5); }
+        .stat-label { font-size: 1em; width: 40px; color: #a0eaff; margin-right: 8px;}
+        .stat-value { font-size: 1.4em; color: #ffffff; font-weight: 700; }
+        .stat-item .exp-label { color: #ffe082; }
+        .stat-item .exp-value { color: #fff59d; font-size: 1.1em; }
+        .daily-tasks, .skills-section { margin-bottom: 30px; padding: 15px; background: rgba(0, 40, 70, 0.4); border-radius: 5px; }
+        .section-title { font-size: 1.6em; color: #40c4ff; margin-bottom: 15px; padding-bottom: 6px; border-bottom: 1px solid rgba(0, 136, 204, 0.3); text-shadow: 0 0 6px rgba(64, 196, 255, 0.5); }
+        .task-list { list-style: none; }
+        .task-list li { margin-bottom: 10px; display: flex; align-items: center; background: rgba(10, 30, 55, 0.7); padding: 10px 12px; border-radius: 4px; border: 1px solid transparent; transition: background-color 0.2s, border-color 0.2s; cursor: pointer; }
+        .task-list li:not(.completed):hover { background-color: rgba(20, 50, 80, 0.8); border-color: rgba(0, 136, 204, 0.4); }
+        .task-list li.completed { background-color: rgba(10, 50, 40, 0.6); opacity: 0.7; cursor: default; }
+        .task-list input[type="checkbox"] { margin-right: 12px; width: 18px; height: 18px; border: 2px solid #00aaff; box-shadow: 0 0 4px rgba(0, 170, 255, 0.2); appearance: none; border-radius: 3px; cursor: pointer; position: relative; background-color: rgba(0, 0, 0, 0.4); flex-shrink: 0;}
+        .task-list input[type="checkbox"]:checked { background-color: #0088cc; box-shadow: 0 0 6px #00aaff; }
+        .task-list input[type="checkbox"]:checked::after { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: #0a0f1f; font-size: 12px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .task-list input[type="checkbox"]:disabled { cursor: default; opacity: 0.8;}
+        .task-list label { flex-grow: 1; font-family: 'Roboto', sans-serif; font-size: 0.95em; display: flex; align-items: center; cursor: pointer; min-width: 0;}
+        .task-list label i { margin-right: 8px; color: #70b0e0; width: 18px; text-align: center; flex-shrink: 0;}
+        .task-list input[type="checkbox"]:checked + label { text-decoration: line-through; color: #80b0d0; cursor: default;}
+        .task-list input[type="checkbox"]:checked + label i { color: #6090b0; }
+        /* Add data-stat attribute to HTML reward span */
+        .task-reward { font-size: 0.85em; color: #a0eaff; margin-left: 10px; font-weight: bold; white-space: nowrap; flex-shrink: 0;}
+        #daily-reward-message { text-align: center; margin-top: 15px; padding: 8px; background: rgba(0, 70, 40, 0.7); border: 1px solid #00cc88; border-radius: 4px; color: #a0ffdd; font-weight: bold; display: none; font-family: 'Orbitron', sans-serif; font-size: 0.9em;}
+        .skills-section { /* Styles mostly inherited */ }
+        .skills-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+        .skills-list li { background: rgba(10, 30, 55, 0.7); padding: 10px; border-radius: 4px; font-size: 0.9em; border: 1px solid rgba(0, 60, 90, 0.5); }
+        .skills-list .skill-name { font-size: 1em; color: #c0e8ff; font-weight: bold; display: block; margin-bottom: 4px;}
+        .skills-list .skill-level { color: #a0eaff; }
+        .time-display { text-align: right; margin-top: 20px; font-size: 0.9em; color: #80dfff; opacity: 0.9; font-family: 'Roboto', sans-serif; }
+        @media (max-width: 768px) { .stats { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); } .level-info { flex-direction: column; gap: 15px; } .job-title { text-align: center; } .resources { grid-template-columns: 1fr; gap: 15px; text-align: center;} .fatigue-display { margin-top: 10px; } .resource-bar label, .fatigue-display label { text-align: center;} }
+        @media (max-width: 480px) { body { padding: 15px 5px; } .status-window { padding: 15px; } .header h1 { font-size: 2em; letter-spacing: 2px; } .level-display .level-number { font-size: 2.8em; } .stats { padding: 10px; gap: 10px; } .stat-item i { font-size: 1.4em; margin-right: 10px; } .stat-label { font-size: 0.9em; } .stat-value { font-size: 1.2em; } .task-list li { padding: 8px 10px; font-size: 0.85em; } .task-list input[type="checkbox"] { width: 16px; height: 16px; margin-right: 8px; } .task-list label i { margin-right: 6px; } .task-reward { font-size: 0.75em; margin-left: 8px; } .section-title { font-size: 1.4em; } .time-display { text-align: center; margin-top: 15px;} .stat-item .exp-value { font-size: 1em; } }
+    </style>
+</head>
+<body>
+
+    <div class="status-window">
+        <div class="content">
+            <!-- Header, Level Info, Resources, Stats -->
+             <div class="header"><h1>STATUS</h1></div>
+            <div class="level-info">
+                <div class="level-display">
+                    <span class="level-number" id="level">1</span><span class="level-label">LEVEL</span>
+                </div>
+                <div class="job-title">
+                    <span>JOB: <span id="job">None</span></span>
+                     {/* Title element will be updated by JS */}
+                    <span>TITLE: <span id="title" class="title-value">Beginner</span></span>
+                </div>
+            </div>
+            <div class="resources">
+                <div class="resource-bar">
+                    <label><i class="fas fa-heart"></i> HP</label>
+                    <div class="bar-container"><div class="bar-fill" id="hp-fill"></div><span class="bar-text" id="hp-text"></span></div>
+                </div>
+                <div class="resource-bar">
+                    <label><i class="fas fa-flask"></i> MP</label>
+                    <div class="bar-container"><div class="bar-fill mp" id="mp-fill"></div><span class="bar-text" id="mp-text"></span></div>
+                </div>
+                <div class="fatigue-display">
+                     <label><i class="fas fa-tired"></i> FATIGUE</label>
+                    <span class="fatigue-value" id="fatigue">0</span>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-item"><i class="fas fa-running"></i><span class="stat-label">AGI:</span><span class="stat-value" id="stat-agi">10</span></div> {/* Changed icon/order for AGI */}
+                <div class="stat-item"><i class="fas fa-shield-alt"></i><span class="stat-label">VIT:</span><span class="stat-value" id="stat-vit">10</span></div> {/* Changed icon for VIT */}
+                <div class="stat-item"><i class="fas fa-brain"></i><span class="stat-label">INT:</span><span class="stat-value" id="stat-int">10</span></div>
+                <div class="stat-item"><i class="fas fa-eye"></i><span class="stat-label">PER:</span><span class="stat-value" id="stat-per">10</span></div>
+                <div class="stat-item"><i class="fas fa-fist-raised"></i><span class="stat-label">STR:</span><span class="stat-value" id="stat-str">10</span></div> {/* Changed icon for STR */}
+                <div class="stat-item"><i class="fas fa-star"></i><span class="stat-label exp-label">EXP:</span><span class="stat-value exp-value" id="stat-exp">0 / 1000</span></div>
+            </div>
+
+            <!-- Daily Tasks: Add data-stat attribute -->
+             <div class="daily-tasks">
+                <h2 class="section-title">Daily Quests</h2>
+                <ul class="task-list" id="task-list">
+                     {/* Added data-stat attribute to link task to stat */}
+                    <li><input type="checkbox" id="task-red-sun" data-task-id="redSun" data-reward-xp="150" data-stat="agi"><label for="task-red-sun"><i class="fas fa-sun"></i>Red Sun Sprint</label><span class="task-reward">(+1 AGI, 150 XP)</span></li>
+                    <li><input type="checkbox" id="task-mind-chamber" data-task-id="mindChamber" data-reward-xp="100" data-stat="per"><label for="task-mind-chamber"><i class="fas fa-head-side-virus"></i>Mind Chamber Calibration</label><span class="task-reward">(+1 PER, 100 XP)</span></li>
+                    <li><input type="checkbox" id="task-habit-forge" data-task-id="habitForge" data-reward-xp="120" data-stat="vit"><label for="task-habit-forge"><i class="fas fa-hammer"></i>Habit Keystone Forge</label><span class="task-reward">(+1 VIT, 120 XP)</span></li>
+                    <li><input type="checkbox" id="task-code-dungeon" data-task-id="codeDungeon" data-reward-xp="250" data-stat="int"><label for="task-code-dungeon"><i class="fas fa-laptop-code"></i>Code Dungeon Expedition</label><span class="task-reward">(+1 INT, 250 XP)</span></li>
+                    <li><input type="checkbox" id="task-knowledge-scroll" data-task-id="knowledgeScroll" data-reward-xp="100" data-stat="int"><label for="task-knowledge-scroll"><i class="fas fa-book-open"></i>Knowledge Scroll Review</label><span class="task-reward">(+1 INT, 100 XP)</span></li>
+                    <li><input type="checkbox" id="task-persona-ascension" data-task-id="personaAscension" data-reward-xp="80" data-stat="str"><label for="task-persona-ascension"><i class="fas fa-user-shield"></i>Persona Ascension Drill</label><span class="task-reward">(+1 STR, 80 XP)</span></li>
+                    <li><input type="checkbox" id="task-chronicle" data-task-id="chronicle" data-reward-xp="100" data-stat="fatigue"><label for="task-chronicle"><i class="fas fa-calendar-alt"></i>Day’s Chronicle & Quest Planning</label><span class="task-reward">(-1 Fatigue, 100 XP)</span></li>
+                </ul>
+                 <p id="daily-reward-message"></p>
+            </div>
+
+            <!-- Skills Section -->
+             <div class="skills-section">
+                 <h2 class="section-title">Skills</h2>
+                 <ul class="skills-list" id="skills-list">
+                    <li><span class="skill-name">Basic Survival</span> <span class="skill-level">Lv. 1</span></li>
+                 </ul>
+            </div>
+
+            <!-- Time Display -->
+            <div class="time-display" id="time-display">Loading time...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Constants and State ---
+        const STORAGE_KEY = 'realLifeSystemData_v7_statquests'; // New key
+        const EXP_PER_LEVEL = 1000;
+        const DAILY_COMPLETION_BONUS_EXP = 100; // Keep bonus EXP separate from stats
+
+        const defaultUserData = {
+            level: 1,
+            job: "None", // Job not used actively yet, but keep for structure
+            title: "Beginner", // Title will be updated based on level
+            hp: 100, maxHp: 100,
+            mp: 50, maxMp: 50,
+            fatigue: 0,
+            // Stats are now primarily increased by quests
+            stats: { str: 10, vit: 10, agi: 10, int: 10, per: 10 },
+            exp: 0,
+            skills: [{ name: "Basic Survival", level: 1 }],
+            dailyTasks: {
+                redSun: false, mindChamber: false, habitForge: false, codeDungeon: false,
+                knowledgeScroll: false, personaAscension: false, chronicle: false
+            },
+            lastLoginDate: new Date().toDateString(),
+            dailyRewardClaimed: false,
+            expGainedToday: 0
+        };
+
+        let userData = { ...defaultUserData };
+
+        // --- DOM References ---
+        let levelEl, jobEl, titleEl, hpFillEl, hpTextEl, mpFillEl, mpTextEl, fatigueEl;
+        let statStrEl, statVitEl, statAgiEl, statIntEl, statPerEl, statExpEl;
+        let taskListEl, skillsListEl, timeDisplayEl, dailyRewardMsgEl;
+
+        function cacheDOMElements() {
+            levelEl = document.getElementById('level');
+            jobEl = document.getElementById('job');
+            titleEl = document.getElementById('title'); // Title element ref
+            hpFillEl = document.getElementById('hp-fill');
+            hpTextEl = document.getElementById('hp-text');
+            mpFillEl = document.getElementById('mp-fill');
+            mpTextEl = document.getElementById('mp-text');
+            fatigueEl = document.getElementById('fatigue');
+            statStrEl = document.getElementById('stat-str');
+            statVitEl = document.getElementById('stat-vit');
+            statAgiEl = document.getElementById('stat-agi');
+            statIntEl = document.getElementById('stat-int');
+            statPerEl = document.getElementById('stat-per');
+            statExpEl = document.getElementById('stat-exp');
+            taskListEl = document.getElementById('task-list');
+            skillsListEl = document.getElementById('skills-list');
+            timeDisplayEl = document.getElementById('time-display');
+            dailyRewardMsgEl = document.getElementById('daily-reward-message');
+        }
+
+        // --- Core Functions ---
+
+        function saveData() {
+            try {
+                const dataString = JSON.stringify(userData);
+                localStorage.setItem(STORAGE_KEY, dataString);
+                // console.log("Data saved:", userData); // Keep for debugging if needed
+            } catch (e) {
+                console.error("Error saving data:", e);
+            }
+        }
+
+        function loadData() {
+             const savedDataString = localStorage.getItem(STORAGE_KEY);
+             console.log("Attempting to load data...");
+             if (savedDataString) {
+                 try {
+                    let loadedData = JSON.parse(savedDataString);
+                    console.log("Saved data parsed:", loadedData);
+                    // Merge safely
+                    userData = { ...defaultUserData, ...loadedData };
+                    userData.stats = { ...defaultUserData.stats, ...(loadedData.stats || {}) };
+                    userData.dailyTasks = { ...defaultUserData.dailyTasks, ...(loadedData.dailyTasks || {}) };
+                    userData.skills = Array.isArray(loadedData.skills) ? loadedData.skills : defaultUserData.skills;
+                    console.log("Data loaded and merged.");
+                 } catch(e) {
+                     console.error("Error parsing saved data:", e);
+                     userData = { ...defaultUserData }; // Reset on error
+                 }
+             } else {
+                 console.log("No saved data found, using defaults.");
+                 userData = { ...defaultUserData };
+             }
+             // Ensure title is correct based on loaded level
+             updateJobTitle();
+        }
+
+        function updateJobTitle() {
+            const level = userData.level;
+            let newTitle = "Beginner"; // Default
+
+            if (level >= 100) newTitle = "Legend";
+            else if (level >= 90) newTitle = "Champion";
+            else if (level >= 80) newTitle = "Grandmaster";
+            else if (level >= 70) newTitle = "Master";
+            else if (level >= 60) newTitle = "Veteran";
+            else if (level >= 50) newTitle = "Expert";
+            else if (level >= 40) newTitle = "Adept";
+            else if (level >= 30) newTitle = "Journeyman";
+            else if (level >= 20) newTitle = "Apprentice";
+            else if (level >= 10) newTitle = "Novice";
+
+            if (userData.title !== newTitle) {
+                console.log(`Title changed from ${userData.title} to ${newTitle} at level ${level}`);
+                userData.title = newTitle;
+                // No immediate save needed here, will be saved with other actions
+            }
+        }
+
+
+        function levelUp() {
+            userData.level++;
+            userData.exp -= EXP_PER_LEVEL;
+            console.log(`Level Up! Reached Level ${userData.level}.`);
+            pulseLevel();
+
+            // --- Level Up Bonuses (NO direct stat gains) ---
+            userData.maxHp += 10;
+            userData.maxMp += 5;
+            // Partial Restore
+            userData.hp = Math.min(userData.maxHp, userData.hp + Math.floor(userData.maxHp * 0.5));
+            userData.mp = Math.min(userData.maxMp, userData.mp + Math.floor(userData.maxMp * 0.5));
+            userData.hp = Math.min(userData.hp, userData.maxHp);
+            userData.mp = Math.min(userData.mp, userData.maxMp);
+
+            // Update Job Title based on the NEW level
+            updateJobTitle();
+
+            // Recursive check
+            if (userData.exp >= EXP_PER_LEVEL) {
+                levelUp();
+            }
+        }
+
+
+        function addExp(amount) {
+             // This function now ONLY handles EXP and triggering level ups
+             if (amount <= 0) return;
+
+             // --- Daily EXP Cap Check ---
+             if (userData.expGainedToday >= 1000) {
+                 console.log(`Daily EXP limit (1000) already met. No EXP gained.`);
+                 // Still save/update display for potential stat changes handled elsewhere
+                 saveData();
+                 updateDisplay();
+                 return;
+             }
+
+             userData.expGainedToday += amount;
+             userData.exp += amount;
+             console.log(`Gained ${amount} EXP. Current EXP: ${userData.exp}/${EXP_PER_LEVEL}. EXP today: ${userData.expGainedToday}`);
+
+             // Check for level up
+             let leveledUp = false;
+             while (userData.exp >= EXP_PER_LEVEL) {
+                 levelUp(); // Handles level increase, title check, HP/MP etc.
+                 leveledUp = true;
+             }
+
+             // Save and Update handled by the calling function (handleTaskChange)
+             // AFTER stat changes are also applied.
+         }
+
+        // --- Other Functions ---
+
+         function updateDisplay() {
+             if (!levelEl) { console.error("DOM not ready for updateDisplay!"); return; }
+
+            levelEl.textContent = userData.level;
+            jobEl.textContent = userData.job;
+            titleEl.textContent = userData.title; // Display current title
+
+            const hpPercent = Math.max(0, Math.min(100, (userData.hp / userData.maxHp) * 100));
+            hpFillEl.style.width = `${hpPercent}%`;
+            hpTextEl.textContent = `${userData.hp} / ${userData.maxHp}`;
+
+            const mpPercent = Math.max(0, Math.min(100, (userData.mp / userData.maxMp) * 100));
+            mpFillEl.style.width = `${mpPercent}%`;
+            mpTextEl.textContent = `${userData.mp} / ${userData.maxMp}`;
+
+            fatigueEl.textContent = userData.fatigue;
+
+            // Display updated stats
+            statAgiEl.textContent = userData.stats.agi;
+            statVitEl.textContent = userData.stats.vit;
+            statIntEl.textContent = userData.stats.int;
+            statPerEl.textContent = userData.stats.per;
+            statStrEl.textContent = userData.stats.str;
+            statExpEl.textContent = `${userData.exp} / ${EXP_PER_LEVEL}`;
+
+            // Update Task Checkboxes
+             if (taskListEl) {
+                taskListEl.querySelectorAll('li').forEach(listItem => {
+                    const checkbox = listItem.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        const taskId = checkbox.dataset.taskId;
+                        if (taskId && userData.dailyTasks.hasOwnProperty(taskId)) {
+                            checkbox.checked = userData.dailyTasks[taskId];
+                            checkbox.disabled = userData.dailyTasks[taskId];
+                            listItem.classList.toggle('completed', userData.dailyTasks[taskId]);
+                        }
+                     }
+                });
+             }
+
+            checkAllTasksCompleted();
+
+            // Update Skills
+             if (skillsListEl) {
+                skillsListEl.innerHTML = '';
+                if (userData.skills && Array.isArray(userData.skills)) {
+                    userData.skills.forEach(skill => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span class="skill-name">${skill.name || 'N/A'}</span> <span class="skill-level">Lv. ${skill.level || 1}</span>`;
+                        skillsListEl.appendChild(li);
+                    });
+                } else { userData.skills = []; }
+             }
+        }
+
+        function updateClock() {
+            if (!timeDisplayEl) { return; }
+            try {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                const dateString = now.toLocaleDateString([], { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'});
+                timeDisplayEl.textContent = `${dateString} ${timeString}`;
+            } catch (e) { console.error("Clock Error:", e); timeDisplayEl.textContent = "Time Error"; }
+        }
+
+        function pulseLevel() {
+             if (levelEl) { levelEl.classList.add('pulse'); setTimeout(() => { levelEl.classList.remove('pulse'); }, 400); }
+         }
+
+         function checkDailyReset() {
+            const todayString = new Date().toDateString();
+            const lastLogin = userData.lastLoginDate || todayString;
+            if (lastLogin !== todayString) {
+                console.log(`Performing daily reset. Last login: ${lastLogin}, Today: ${todayString}`);
+                userData.dailyTasks = { ...defaultUserData.dailyTasks };
+                userData.lastLoginDate = todayString;
+                userData.dailyRewardClaimed = false;
+                userData.expGainedToday = 0;
+                userData.fatigue = Math.max(0, userData.fatigue - 5);
+                saveData();
+                updateDisplay();
+            }
+        }
+
+         function handleTaskChange(event) {
+            const checkbox = event.target.closest('input[type="checkbox"]');
+            if (checkbox && !checkbox.disabled) {
+                const taskId = checkbox.dataset.taskId;
+                const isChecked = checkbox.checked;
+                const listItem = checkbox.closest('li');
+
+                if (taskId && userData.dailyTasks.hasOwnProperty(taskId)) {
+                    if (isChecked && !userData.dailyTasks[taskId]) {
+                        userData.dailyTasks[taskId] = true;
+                        checkbox.disabled = true;
+                        listItem.classList.add('completed');
+
+                        const rewardXp = parseInt(checkbox.dataset.rewardXp || '0', 10);
+                        const targetStat = checkbox.dataset.stat; // Get target stat from data attribute
+
+                        // --- Apply Stat/Fatigue Bonus ---
+                        if (targetStat && targetStat !== 'fatigue' && userData.stats.hasOwnProperty(targetStat)) {
+                            userData.stats[targetStat]++;
+                            console.log(`Task ${taskId} completed. +1 ${targetStat.toUpperCase()}`);
+                        } else if (targetStat === 'fatigue') {
+                            userData.fatigue = Math.max(0, userData.fatigue - 1);
+                            console.log(`Task ${taskId} completed. -1 Fatigue.`);
+                        } else {
+                            console.warn(`Task ${taskId} completed but no valid target stat found.`);
+                        }
+
+                        // --- Add EXP ---
+                        addExp(rewardXp); // This now only handles EXP and level check
+
+                        // --- Final Save & Update ---
+                        // Moved save/update here AFTER both stat and exp changes
+                        saveData();
+                        updateDisplay();
+                        checkAllTasksCompleted(); // Check completion status AFTER updates
+                    }
+                }
+            }
+        }
+
+        function checkAllTasksCompleted() {
+             if (!userData.dailyTasks) { return; } // Safety check
+            let allDone = true;
+            for (const taskId in userData.dailyTasks) {
+                if (Object.hasOwnProperty.call(userData.dailyTasks, taskId)) {
+                    if (!userData.dailyTasks[taskId]) { allDone = false; break; }
+                }
+            }
+
+             if (!dailyRewardMsgEl) { return; } // Safety check
+
+            if (allDone && !userData.dailyRewardClaimed) {
+                console.log("All daily quests completed! Claiming bonus EXP reward.");
+                addExp(DAILY_COMPLETION_BONUS_EXP); // Grant bonus EXP
+
+                // Other bonus effects (MP restore)
+                userData.mp = Math.min(userData.maxMp, userData.mp + 15);
+
+                dailyRewardMsgEl.textContent = `SYSTEM: All Quests Complete! Bonus +${DAILY_COMPLETION_BONUS_EXP} EXP!`;
+                dailyRewardMsgEl.style.display = 'block';
+                userData.dailyRewardClaimed = true;
+
+                saveData(); // Save after claiming
+                updateDisplay(); // Update display
+            } else if (allDone && userData.dailyRewardClaimed) {
+                 dailyRewardMsgEl.textContent = `SYSTEM: All Quests Complete! Bonus claimed for today.`;
+                 dailyRewardMsgEl.style.display = 'block';
+            } else {
+                 dailyRewardMsgEl.style.display = 'none';
+            }
+         }
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM Loaded. Caching & Initializing V7...");
+            cacheDOMElements(); // Cache DOM refs
+
+            loadData();         // 1. Load
+            checkDailyReset();  // 2. Reset Check
+            updateDisplay();    // 3. Initial Display
+            updateClock();      // 4. Initial Clock
+
+            // Intervals
+            setInterval(updateClock, 1000);
+            setInterval(checkDailyReset, 60000); // Check every minute is fine
+
+             // Event Listeners
+             if (taskListEl) {
+                taskListEl.addEventListener('change', handleTaskChange);
+                taskListEl.addEventListener('click', (event) => {
+                    const listItem = event.target.closest('li');
+                    if(listItem) {
+                        const checkbox = listItem.querySelector('input[type="checkbox"]');
+                        if(checkbox && !checkbox.disabled && !checkbox.checked) {
+                            checkbox.checked = true;
+                            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                });
+             } else { console.error("Task list not found for listeners."); }
+
+             console.log("System V7 Initialized.");
+        });
+
+    </script>
+
+</body>
+</html>
